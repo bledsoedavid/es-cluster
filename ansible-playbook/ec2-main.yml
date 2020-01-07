@@ -1,0 +1,38 @@
+---
+
+- hosts: localhost
+  gather_facts: False
+
+  tasks:
+
+    - name: Provision a set of instances
+      ec2:
+         key_name: es-cluster
+         group: search
+         instance_type: t3.medium
+         region: us-west-2
+         image:  ami-06d51e91cea0dac8d
+         wait: true
+         exact_count: 3
+         count_tag:
+            Name: es-cluster_count
+         instance_tags:
+            Name: es-node
+      register: ec2
+
+    - name: Add all instance public IPs to host group
+      add_host: hostname={{ item.public_ip }} groups=ec2hosts
+      loop: "{{ ec2.instances }}"
+    
+    - name: Provision a set of instances
+      hosts: localhost
+
+    - hosts: ec2hosts
+      name: configuration play
+      user: ubuntu
+      gather_facts: true
+
+      tasks:
+
+       - name: Check NTP service
+         service: name=ntpd state=started
